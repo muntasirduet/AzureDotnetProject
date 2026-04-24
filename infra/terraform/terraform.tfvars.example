@@ -1,0 +1,12 @@
+location             = "westeurope"
+project_name         = "taskapi"
+environment          = "dev"
+app_service_sku      = "B1"
+create_postgres      = true
+postgres_sku_name    = "B_Standard_B1ms"
+
+# Generate a strong secret before apply.
+jwt_secret           = "replace-with-at-least-32-characters"
+
+demo_username        = "student"
+demo_password        = "Pass@123"

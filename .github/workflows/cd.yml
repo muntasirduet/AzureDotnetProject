@@ -1,0 +1,58 @@
+name: CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "src/**"
+      - "docker-compose.yml"
+      - ".github/workflows/cd.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image to ACR
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+        run: |
+          az acr login --name "$ACR_NAME"
+          IMAGE_TAG=${GITHUB_SHA::7}
+          docker build -f src/TaskApi/Dockerfile -t "$ACR_LOGIN_SERVER/taskapi:$IMAGE_TAG" .
+          docker push "$ACR_LOGIN_SERVER/taskapi:$IMAGE_TAG"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Configure App Service container image
+        env:
+          RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
+          WEBAPP_NAME: ${{ secrets.WEBAPP_NAME }}
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+        run: |
+          az webapp config container set \
+            --resource-group "$RESOURCE_GROUP_NAME" \
+            --name "$WEBAPP_NAME" \
+            --container-image-name "$ACR_LOGIN_SERVER/taskapi:${IMAGE_TAG}" \
+            --container-registry-url "https://$ACR_LOGIN_SERVER"
+
+      - name: Restart App Service
+        env:
+          RESOURCE_GROUP_NAME: ${{ secrets.RESOURCE_GROUP_NAME }}
+          WEBAPP_NAME: ${{ secrets.WEBAPP_NAME }}
+        run: az webapp restart --resource-group "$RESOURCE_GROUP_NAME" --name "$WEBAPP_NAME"

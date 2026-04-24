@@ -1,0 +1,32 @@
+@TaskApi_HostAddress = http://localhost:8080
+@Token = REPLACE_WITH_TOKEN
+
+GET {{TaskApi_HostAddress}}/health
+Accept: application/json
+
+###
+
+POST {{TaskApi_HostAddress}}/api/auth/token
+Content-Type: application/json
+
+{
+	"username": "student",
+	"password": "Pass@123"
+}
+
+###
+
+GET {{TaskApi_HostAddress}}/api/tasks
+Accept: application/json
+Authorization: Bearer {{Token}}
+
+###
+
+POST {{TaskApi_HostAddress}}/api/tasks
+Content-Type: application/json
+Authorization: Bearer {{Token}}
+
+{
+	"title": "Practice GitHub Actions",
+	"description": "Set up CI pipeline and run tests"
+}

@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: taskapi-db
+    environment:
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpassword
+      POSTGRES_DB: taskapidb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d taskapidb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/TaskApi/Dockerfile
+    container_name: taskapi-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=taskapidb;Username=taskuser;Password=taskpassword
+      Jwt__Issuer: TaskApi
+      Jwt__Audience: TaskApiClients
+      Jwt__Secret: local-dev-secret-change-me-in-prod-123456789
+      DemoUser__Username: student
+      DemoUser__Password: Pass@123
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:
